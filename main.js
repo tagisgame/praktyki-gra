@@ -175,7 +175,7 @@ function Cell (x, y, wall = false, mob = null, item = null) {
  * @property {number} [dmg] mob's attack points (damage)
  *
  **/
- function Mob (id, x, y, type = "player", hp = 10, ap = 1) {
+ function Mob (id, x, y, type = "player", hp = 10, dmg = 1) {
   this.id = id;
   this.x = x;
   this.y = y;
@@ -320,8 +320,8 @@ function Cell (x, y, wall = false, mob = null, item = null) {
 // <editor-fold desc="Game loop">
 let randBoard = 1;
 let game = new Game(fs.readFileSync('zestaw_plansz/board' + randBoard + '.txt', 'utf8').split("\n").map(_ => _.split("")));
-//console.log(game.board);
+game.mobList.push(new Mob(0,0,0,"player",10,1));
+game.board[0][0].mob = 0;
 game.fillWithMobs("random",5);
-//console.log(game.board);
 game.draw();
 // </editor-fold>
