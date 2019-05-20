@@ -1,4 +1,5 @@
 const fs = require('fs');
+const readlineSync = require('readline-sync');
 
 // <editor-fold desc="Classes">
 /**
@@ -116,16 +117,37 @@ function Game (board) {
     return this.mobList;
   }
   /**
+   * Puts player on board.
+   *
+   * @returns {Array} mobList array
+   **/
+  this.putPlayer = function () {
+    while (true) {
+      let randX = Math.floor(Math.random() * (this.board.length - 1));
+      let randY = Math.floor(Math.random() * (this.board[randX].length - 1));
+      if(this.board[randX][randY].mob !== null || this.board[randX][randY].wall) {
+        continue;
+      }
+      let id = 0;
+      let hp = 10;
+      this.mobList.push(new Mob(id, randX, randY, "player", hp));
+      this.board[randX][randY].mob = id;
+
+      break;
+    }
+    return this.mobList;
+  }
+  /**
    * Draws a board in console
    **/
   this.draw = function () {
-    for (let x = 0; x < this.board.length; x++) {
+    for (let y = 0; y < this.board.length; y++) {
       let buf = "";
-      for (let y = 0; y < this.board[x].length; y++) {
-        if(this.board[x][y].wall) {
+      for (let x = 0; x < this.board[y].length; x++) {
+        if(this.board[y][x].wall) {
           buf += "#";
-        } else if (this.board[x][y].mob !== null) {
-          let type = this.findMobAttribs(this.board[x][y].mob)[4];
+        } else if (this.board[y][x].mob !== null) {
+          let type = this.findMobAttribs(this.board[y][x].mob)[4];
           if (type === "snake") {
             buf += "S";
           } else if (type === "dragon") {
@@ -139,6 +161,7 @@ function Game (board) {
       }
       console.log(buf);
     }
+    console.log("HP: " + this.findMobAttribs(0)[5]);
   }
 }
 /**
@@ -175,7 +198,7 @@ function Cell (x, y, wall = false, mob = null, item = null) {
  * @property {number} [dmg] mob's attack points (damage)
  *
  **/
- function Mob (id, x, y, type = "player", hp = 10, dmg = 1) {
+function Mob (id, x, y, type = "player", hp = 10, dmg = 1) {
   this.id = id;
   this.x = x;
   this.y = y;
@@ -193,27 +216,33 @@ function Cell (x, y, wall = false, mob = null, item = null) {
   this.move = function (game, dir) {
     /** Move mob */
     let go = (game, offsetX = 0, offsetY = 0) => {
-      if (this.x + offsetX < 0 || this.x + offsetX > game.board[this.x].lenght) {
+      console.log("-=-=-==-=-=-=-=-=-=-=-=-=-= \n", offsetX, offsetY, dir);
+      if (this.x + Number.parseInt(offsetX) < 0 || this.x + Number.parseInt(offsetX) > game.board[this.x].length - 1) {
+        console.log("-=-=-==-=-=-=-=-=-=-=-=-=-= \n" + "x jest zle\n" /*this.x + offsetX */, this);
         return false;
       }
-      if (this.y + offsetY < 0 || this.y + offsetY > game.board.lenght) {
+      if (this.y + Number.parseInt(offsetY) < 0 || this.y + Number.parseInt(offsetY) > game.board.length - 1) {
+        console.log("-=-=-==-=-=-=-=-=-=-=-=-=-= \n" + "y jest zle\n" /*this.y + offsetY*/, this);
         return false;
       }
-      if (game.board[this.x + offsetX][this.y + offsetY].wall) {
+      /*if (game.board[this.x + offsetX][this.y + offsetY].wall) {
         return false;
       }
       if (game.board[this.x + offsetX][this.y + offsetY].mob !== null) {
-        this.attack(game.board[this.x + offsetX][this.y + offsetY].mob);
+        if (!(this.attack(game, game.board[this.x + offsetX][this.y + offsetY].mob))) {
+          return false;
+        }
       } else if (this.type === "player" && game.board[this.x + offsetX][this.y + offsetY].item !== null) {
         this.equip(game.board[this.x + offsetX][this.y + offsetY].item);
-      }
+      }*/
       game.board[this.x][this.y].mob = null;
       game.board[this.x + offsetX][this.y + offsetY].mob = this.id;
       this.x += offsetX;
       this.y += offsetY;
+      console.log("-=-=-==-=-=-=-=-=-=-=-=-=-= \n", this, dir);
       return true;
     }
-
+    console.log(this, dir);
     switch (dir) {
       case "u":
         return go(game, 0, -1);
@@ -238,43 +267,41 @@ function Cell (x, y, wall = false, mob = null, item = null) {
    * @return {bool} false if mob cannot be moved (eg. because of wall)
    **/
   this.moveToPlayer = function (game) {
-    // Szukaj gracza na liście
-
-    let playerX = 0;
-    let playerY = 0;
+    let playerX = game.findMobAttribs(0)[2];
+    let playerY = game.findMobAttribs(0)[3];
 
     if (this.x > playerX) {
       /** player is on left-up */
       if (this.y > playerY) {
-        let randomDir = Math.random() < 0.5 ? "l" : "u";
+        let randomDir = Math.random() < 0.5 ? "u" : "l";
         return this.move(game, randomDir);
       }
       /** player is on left-down */
       if (this.y < playerY) {
-        let randomDir = Math.random() < 0.5 ? "l" : "d";
+        let randomDir = Math.random() < 0.5 ? "u" : "r";
         return this.move(game, randomDir);
       }
       /** player is on left*/
-      return this.move(game, "l");
+      return this.move(game, "u");
     }
     if (this.x < playerX) {
       /** player is on right-up */
       if (this.y > playerY) {
-        let randomDir = Math.random() < 0.5 ? "r" : "u";
+        let randomDir = Math.random() < 0.5 ? "d" : "l";
         return this.move(game, randomDir);
       }
       /** player is on right-down */
       if (this.y < playerY) {
-        let randomDir = Math.random() < 0.5 ? "r" : "d";
+        let randomDir = Math.random() < 0.5 ? "d" : "r";
         return this.move(game, randomDir);
       }
       /** player is on right*/
-      return this.move(game, "r");
+      return this.move(game, "d");
     }
     /** player is on up */
-    if (this.y > playerY) return this.move(game, "u");
+    if (this.y > playerY) return this.move(game, "l");
     /** player is on down */
-    if (this.y > playerY) return this.move(game, "d");
+    if (this.y > playerY) return this.move(game, "r");
   }
 
   /**
@@ -285,33 +312,23 @@ function Cell (x, y, wall = false, mob = null, item = null) {
    * @return {bool} true if target is killed
    **/
   this.attack = function (game, targetId) {
-    let target = {};
-    /** Searching for target in game.mobList */
-    for (let i = 0; i < game.mobList.length; i++) {
-      if (game.mobList[i].id === targetId) {
-        game.mobList[i].hp -= this.dmg;
-        if (game.mobList[i].hp <= 0) {
-          game.mobList[i].getKilled(game);
-          return true;
-        } else {
-          return false;
-        }
-      }
-    }
+    return game.mobList[game.findMobAttribs(targetId)[0]].getDamage(this.dmg);
   }
 
   /**
-   * Removes mob from game.mobList
-   * @param {Object} game main object, board on which the target is
+   * Changes hp of mob when is attacked and checking for death
+   *
+   * @param {number} amount amount of dmg dealt
+   *
+   * @returns {bool} true if killed
    **/
-  this.getKilled = function (game) {
-    /** Removing 'this' from cell */
-    game.board[this.x][this.y].mob = null;
-    /** Searching for 'this' in game.mobList */
-    for (let i = 0; i < game.mobList.length; i++) {
-      if (game.mobList[i].id === this.id) {
-        game.mobList.splice(i,1);
-      }
+  this.getDamage = function (game, amount) {
+    if (hp - amount <= 0) {
+      game.board[this.x][this.y].mob = null;
+      game.mobList[0].unshift(this.id);
+      game.mobList.splice(game.findMobAttribs(this.id)[0],1);
+    } else {
+      this.hp -= amount;
     }
   }
  }
@@ -320,8 +337,32 @@ function Cell (x, y, wall = false, mob = null, item = null) {
 // <editor-fold desc="Game loop">
 let randBoard = 1;
 let game = new Game(fs.readFileSync('zestaw_plansz/board' + randBoard + '.txt', 'utf8').split("\n").map(_ => _.split("")));
-game.mobList.push(new Mob(0,0,0,"player",10,1));
-game.board[0][0].mob = 0;
+game.putPlayer();
 game.fillWithMobs("random",5);
-game.draw();
+//while(game.mobList[game.findMobAttribs(0)[0]].hp > 0) {
+for (let j = 0; j < 5; j++) {
+  game.draw();
+  let getKeyAndMove = function getKeyAndMove(){
+  	var code = readlineSync.question("Jak chcesz się poruszyć?: ").toLowerCase();
+  	switch(code){
+  		case "left": //left arrow key
+  			game.mobList[game.findMobAttribs(0)[0]].move(game, "l");
+  			break;
+  		case "up": //Up arrow key
+  			game.mobList[game.findMobAttribs(0)[0]].move(game, "u");
+  			break;
+			case "right": //right arrow key
+				game.mobList[game.findMobAttribs(0)[0]].move(game, "r");
+				break;
+  		case "down": //down arrow key
+  			game.mobList[game.findMobAttribs(0)[0]].move(game, "d");
+  			break;
+  	}
+  }
+  getKeyAndMove();
+
+  for (let i = 1; i < game.mobList.length; i++) {
+    if (game.mobList[i].type !== "player") game.mobList[i].moveToPlayer(game);
+  }
+}
 // </editor-fold>
