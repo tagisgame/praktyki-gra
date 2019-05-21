@@ -457,5 +457,5 @@ while(game.mobList[game.findMobAttribs(0)[0]].alive) {
     if (game.mobList[i].type !== "player") game.mobList[i].moveToPlayer(game);
   }
 }
-console.log("Niestety jesteś gupi i zdechłeś kmiocie!");
+console.log("Niestety umarłeś!");
 // </editor-fold>
