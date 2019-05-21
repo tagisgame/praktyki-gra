@@ -277,6 +277,9 @@ function Mob (id, x, y, type = "player", hp = 10, dmg = 1) {
       }
       if (game.board[this.x + offsetX][this.y + offsetY].mob !== null) {
         //console.log(this.id, "(" + this.x + ", " + this.y + ")", dir, "Mob:", this.x + offsetX, this.y + offsetY);
+        if (this.type !== "player" && game.board[this.x + offsetX][this.y + offsetY].mob !== 0) {
+          return false;
+        }
         if (!(this.attack(game, game.board[this.x + offsetX][this.y + offsetY].mob))) {
           return false;
         }
@@ -424,38 +427,47 @@ function Mob (id, x, y, type = "player", hp = 10, dmg = 1) {
 // </editor-fold>
 
 // <editor-fold desc="Game loop">
-let randBoard = 1;
-let game = new Game(fs.readFileSync('zestaw_plansz/board' + randBoard + '.txt', 'utf8').split("\n").map(_ => _.split("")));
-game.putPlayer();
-game.fillWithMobs("random",5);
-game.fillWithItems("random", "random",10);
+while(true){
+  console.log("Witaj w RougeLike! Twoim celem jest pokonanie wszystkich przeciwników")
+  let randBoard = 1;
+  let game = new Game(fs.readFileSync('zestaw_plansz/board' + randBoard + '.txt', 'utf8').split("\n").map(_ => _.split("")));
+  game.putPlayer();
+  game.fillWithMobs("random",5);
+  game.fillWithItems("random", "random",10);
 
-while(game.mobList[game.findMobAttribs(0)[0]].alive) {
-  game.removeDeadMobs();
-//for (let j = 0; j < 5; j++) {
-  game.draw();
-  let getKeyAndMove = function getKeyAndMove(){
-  	var code = readlineSync.question("Jak chcesz się poruszyć?: ").toLowerCase();
-  	switch(code){
-  		case "left": //left arrow key
-  			game.mobList[game.findMobAttribs(0)[0]].move(game, "l");
-  			break;
-  		case "up": //Up arrow key
-  			game.mobList[game.findMobAttribs(0)[0]].move(game, "u");
-  			break;
-			case "right": //right arrow key
-				game.mobList[game.findMobAttribs(0)[0]].move(game, "r");
-				break;
-  		case "down": //down arrow key
-  			game.mobList[game.findMobAttribs(0)[0]].move(game, "d");
-  			break;
-  	}
-  }
-  getKeyAndMove();
+  while(game.mobList[game.findMobAttribs(0)[0]].alive) {
+    game.removeDeadMobs();
+  //for (let j = 0; j < 5; j++) {
+    game.draw();
+    let getKeyAndMove = function getKeyAndMove(){
+      while(true){
+    	  var code = readlineSync.question("Jak chcesz się poruszyć?(left/up/right/down): ").toLowerCase();
+      	switch(code){
+      		case "up":
+      			game.mobList[game.findMobAttribs(0)[0]].move(game, "l");
+      			break;
+      		case "left":
+      			game.mobList[game.findMobAttribs(0)[0]].move(game, "u");
+      			break;
+    			case "down":
+    				game.mobList[game.findMobAttribs(0)[0]].move(game, "r");
+    				break;
+      		case "right":
+      			game.mobList[game.findMobAttribs(0)[0]].move(game, "d");
+      			break;
+          default:
+            console.log("Podałeś złą komendę!")
+            continue;
+        }
+        break;
+      }
+    }
+    getKeyAndMove();
 
-  for (let i = 1; i < game.mobList.length; i++) {
-    if (game.mobList[i].type !== "player") game.mobList[i].moveToPlayer(game);
+    for (let i = 1; i < game.mobList.length; i++) {
+      if (game.mobList[i].type !== "player") game.mobList[i].moveToPlayer(game);
+    }
   }
+  console.log("Niestety umarłeś!");
 }
-console.log("Niestety umarłeś!");
 // </editor-fold>
