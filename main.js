@@ -9,18 +9,6 @@ const readlineSync = require('readline-sync');
  *
  * @constructor
  *
- * @property {[]} board array used as board for game
- * @property {[]} mobList list of all mobs on board
- * @property {[]} mobIdLeft list of ID's left for mobs
- * @property {[]} itemList list of all items on board
- */
-/**
- * Main class, containing board. list of any instances
- * and useful methods
- * @class
- *
- * @constructor
- *
  * @param {string} file path to board
  * @property {[]} board array used as board for game
  * @property {[]} mobList list of all mobs on board, first element is a list of IDs
@@ -31,6 +19,7 @@ function Game (board) {
   for (let x = 0; x < this.board.length; x++) {
     for (let y = 0; y < this.board[x].length; y++) {
       this.board[x][y] = this.board[x][y] === "." ? new Cell(x, y) : new Cell(x, y, true);
+      //console.log(this.board[x][y]);
     }
   }
 
@@ -80,22 +69,19 @@ function Game (board) {
       break;
     }
 
-    let array = [targetIndex];
-    for (let key in this.itemList[targetIndex]) {
-      array.push(key);
-    }
-
+    let array = Object.values(this.itemList[targetIndex]);
+    array.unshift(targetIndex);
     return array;
   }
   /**
    * Fills board with mobs. If mob type not specified, fills with random mobs.
    *
    * @param {number} type number which defines type of mob (look at table of types)
-   * @param {number} count number which defines type of mob (look at table of types)
+   * @param {number} count number which defines how many mobs do you want
    *
    * @returns {Array} mobList array
    **/
-  this.fillWithMobs = function (type, count) {
+  this.fillWithMobs = function (type = "random", count) {
     let mob = type;
     while (count > 0) {
       let randX = Math.floor(Math.random() * (this.board.length - 1));
@@ -115,6 +101,44 @@ function Game (board) {
       count--;
     }
     return this.mobList;
+  }
+  /**
+   * Fills board with items. If type or class not specified, fills with random items.
+   *
+   * @param {string} cls class of item (weapon/potion)
+   * @param {string} type defines type of items
+   * @param {number} count number which defines how many items you want
+   *
+   * @returns {Array} itemList array
+   **/
+  this.fillWithItems = function (cls = "random", type = "random", count) {
+    let item = type;
+    let cls_ = cls;
+    while (count > 0) {
+      let randX = Math.floor(Math.random() * (this.board.length - 1));
+      let randY = Math.floor(Math.random() * (this.board[randX].length - 1));
+      if(this.board[randX][randY].mob !== null || this.board[randX][randY].wall || this.board[randX][randY].item !== null) {
+        continue;
+      }
+      if (item === "random") {
+        if (cls_ === "random") {
+
+          cls = Math.random() < 0.3 ? "weapon" : "potion";
+        }
+        type = Math.random() < 0.5 ? "1" : "2";
+      }
+      let id = this.itemList[0].shift();
+      if (cls === "weapon") {
+        this.itemList.push(new Weapon(id,randX,randY,(type === "1" ? "axe" : "dagger")));
+      } else {
+        this.itemList.push(new Potion(id,randX,randY,(type === "1" ? "heal" : "poison")));
+
+      }
+      this.board[randX][randY].item = id;
+
+      count--;
+    }
+    return this.itemList;
   }
   /**
    * Puts player on board.
@@ -138,9 +162,20 @@ function Game (board) {
     return this.mobList;
   }
   /**
+   *
+   *
+   **/
+  this.removeDeadMobs = function () {
+    for (let i = 1; i < this.mobList.length; i++) {
+      if (this.mobList[i].alive) continue;
+      this.mobList.splice(i,1);
+    }
+  }
+  /**
    * Draws a board in console
    **/
   this.draw = function () {
+    //console.log(this.mobList);
     for (let x = 0; x < this.board.length; x++) {
       let buf = "";
       for (let y = 0; y < this.board[x].length; y++) {
@@ -155,12 +190,24 @@ function Game (board) {
           } else {
             buf += "@";
           }
+        } else if (this.board[x][y].item !== null) {
+          let type = this.findItemAttribs(this.board[x][y].item)[4];
+          if (type === "axe") {
+            buf += "a";
+          } else if (type === "dagger") {
+            buf += "d";
+          } else if (type === "heal") {
+            buf += "h";
+          } else {
+            buf += "p";
+          }
         } else {
           buf += ".";
         }
       }
       console.log(buf);
     }
+    console.log("Player HP: ", this.findMobAttribs(0)[5]);
   }
 }
 /**
@@ -204,6 +251,7 @@ function Mob (id, x, y, type = "player", hp = 10, dmg = 1) {
   this.type = type;
   this.hp = (this.type === "snake" ? 2 : (this.type === "dragon" ? 25 : hp));
   this.dmg = (this.type === "snake" ? 1 : (this.type === "dragon" ? 4 : dmg));
+  this.alive = true;
 
   /**
    * Moves mob in defined direction
@@ -215,20 +263,27 @@ function Mob (id, x, y, type = "player", hp = 10, dmg = 1) {
   this.move = function (game, dir) {
     /** Move mob */
     let go = (game, offsetX = 0, offsetY = 0) => {
-      if (this.x + offsetX < 0 || this.x + offsetX > game.board[this.x].lenght) {
+      if (this.x + offsetX < 0 || this.x + offsetX > game.board.length - 1) {
+        //console.log(this.id, "(" + this.x + ", " + this.y + ")", dir, "Błąd na X:", this.x + offsetX);
         return false;
       }
-      if (this.y + offsetY < 0 || this.y + offsetY > game.board.lenght) {
+      if (this.y + offsetY < 0 || this.y + offsetY > game.board[this.x].length - 1) {
+        //console.log(this.id, "(" + this.x + ", " + this.y + ")", dir, "Błąd na Y:", this.y + offsetY);
         return false;
       }
       if (game.board[this.x + offsetX][this.y + offsetY].wall) {
+        //console.log(this.id, "(" + this.x + ", " + this.y + ")", dir, "Ściana:", this.x + offsetX, this.y + offsetY);
         return false;
       }
       if (game.board[this.x + offsetX][this.y + offsetY].mob !== null) {
-        this.attack(game.board[this.x + offsetX][this.y + offsetY].mob);
+        //console.log(this.id, "(" + this.x + ", " + this.y + ")", dir, "Mob:", this.x + offsetX, this.y + offsetY);
+        if (!(this.attack(game, game.board[this.x + offsetX][this.y + offsetY].mob))) {
+          return false;
+        }
       } else if (this.type === "player" && game.board[this.x + offsetX][this.y + offsetY].item !== null) {
-        this.equip(game.board[this.x + offsetX][this.y + offsetY].item);
+        this.equip(game, game.board[this.x + offsetX][this.y + offsetY].item);
       }
+      //console.log(this.id, "(" + this.x + ", " + this.y + ")", dir, "Jest git:", this.x + offsetX, this.y + offsetY);
       game.board[this.x][this.y].mob = null;
       game.board[this.x + offsetX][this.y + offsetY].mob = this.id;
       this.x += offsetX;
@@ -294,7 +349,7 @@ function Mob (id, x, y, type = "player", hp = 10, dmg = 1) {
     /** player is on up */
     if (this.y > playerY) return this.move(game, "u");
     /** player is on down */
-    if (this.y > playerY) return this.move(game, "d");
+    if (this.y < playerY) return this.move(game, "d");
   }
 
   /**
@@ -305,10 +360,13 @@ function Mob (id, x, y, type = "player", hp = 10, dmg = 1) {
    * @return {bool} true if target is killed
    **/
   this.attack = function (game, targetId) {
-    /** Searching for target in game.mobList */
+    return game.mobList[game.findMobAttribs(targetId)[0]].getDamage(game, this.dmg);
 
   }
+  this.equip = function (game, targetId) {
+    return game.itemList[game.findItemAttribs(targetId)[0]].getEquipped(game, this.id);
 
+  }
   /**
    * Changes hp of mob when is attacked and checking for death
    *
@@ -317,14 +375,51 @@ function Mob (id, x, y, type = "player", hp = 10, dmg = 1) {
    * @returns {bool} true if killed
    **/
   this.getDamage = function (game, amount) {
-    if (hp - amount <= 0) {
+    if (this.hp - amount <= 0) {
+      console.log(this.type, "Otrzymane obrażenia: ", amount, "HP: ", this.hp)
       game.board[this.x][this.y].mob = null;
       game.mobList[0].unshift(this.id);
-      game.mobList.splice(game.findMobAttribs(this.id)[0],1);
+      this.alive = false;
+      return true;
     } else {
-      this.hp -= amount;
+      this.hp = this.hp - amount;
+      console.log(this.type, "Otrzymane obrażenia: ", amount, "HP: ", this.hp)
+      return false;
     }
   }
+ }
+/**
+ *
+ *
+ **/
+ function Weapon(id, x, y, type = "axe", dmg = 2){
+   this.id = id;
+   this.x = x;
+   this.y = y;
+   this.type = type;
+   this.dmg = (this.type === "axe" ? 20 : (this.type === "dagger" ? 2 : dmg));
+   this.alive = true;
+   this.getEquipped = function (game, playerId) {
+     game.mobList[game.findMobAttribs(playerId)[0]].dmg = this.dmg;
+     game.board[this.x][this.y].item = null;
+     game.itemList[0].unshift(this.id);
+     this.alive = false;
+   }
+ }
+
+ function Potion(id, x, y, type = "heal", effect){
+   this.id = id;
+   this.x = x;
+   this.y = y;
+   this.type = type;
+   this.effect = (this.type === "poison" ? -5 : (this.type === "heal" ? 5 : effect));
+   this.alive = true;
+   this.getEquipped = function (game, playerId) {
+     game.mobList[game.findMobAttribs(playerId)[0]].hp += this.effect;
+     game.board[this.x][this.y].item = null;
+     game.itemList[0].unshift(this.id);
+     this.alive = false;
+   }
  }
 // </editor-fold>
 
@@ -333,7 +428,10 @@ let randBoard = 1;
 let game = new Game(fs.readFileSync('zestaw_plansz/board' + randBoard + '.txt', 'utf8').split("\n").map(_ => _.split("")));
 game.putPlayer();
 game.fillWithMobs("random",5);
-while(game.mobList[game.findMobAttribs(0)[0]].hp > 0) {
+game.fillWithItems("random", "random",10);
+
+while(game.mobList[game.findMobAttribs(0)[0]].alive) {
+  game.removeDeadMobs();
 //for (let j = 0; j < 5; j++) {
   game.draw();
   let getKeyAndMove = function getKeyAndMove(){
@@ -359,4 +457,5 @@ while(game.mobList[game.findMobAttribs(0)[0]].hp > 0) {
     if (game.mobList[i].type !== "player") game.mobList[i].moveToPlayer(game);
   }
 }
+console.log("Niestety jesteś gupi i zdechłeś kmiocie!");
 // </editor-fold>
