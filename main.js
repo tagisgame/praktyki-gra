@@ -392,7 +392,17 @@ function Mob (id, x, y, type = "player", hp = 10, dmg = 1) {
   }
  }
 /**
- *
+ * A Weapon, a single item on our map. It could be axe or dagger.
+* @class
+*
+* @constructor
+*
+* @property {number} id ID of weapon, used to finding weapon in Game.itemList
+* @property {number} x x position of weapon
+* @property {number} y y position of weapon
+* @property {string} type type of weapon (axe/dagger)
+* @property {number} [dmg] weapon's attack points (damage)
+* @property {bool} alive is true if weapon is on map
  *
  **/
  function Weapon(id, x, y, type = "axe", dmg = 2){
@@ -409,7 +419,20 @@ function Mob (id, x, y, type = "player", hp = 10, dmg = 1) {
      this.alive = false;
    }
  }
-
+ /**
+  * A Potion, a single item on our map. It could be poison or heal.
+ * @class
+ *
+ * @constructor
+ *
+ * @property {number} id ID of potion, used to finding potion in Game.itemList
+ * @property {number} x x position of potion
+ * @property {number} y y position of potion
+ * @property {string} type type of potion (axe/dagger)
+ * @property {number} effect number of hp +/- modified by potion
+ * @property {bool} alive is true if potion is on map
+  *
+  **/
  function Potion(id, x, y, type = "heal", effect){
    this.id = id;
    this.x = x;
@@ -418,7 +441,11 @@ function Mob (id, x, y, type = "player", hp = 10, dmg = 1) {
    this.effect = (this.type === "poison" ? -5 : (this.type === "heal" ? 5 : effect));
    this.alive = true;
    this.getEquipped = function (game, playerId) {
-     game.mobList[game.findMobAttribs(playerId)[0]].hp += this.effect;
+     if (this.effect > 0) {
+       game.mobList[game.findMobAttribs(playerId)[0]].hp += this.effect;
+     } else {
+       game.mobList[game.findMobAttribs(playerId)[0]].getDamage(game, Math.abs(this.effect));
+     }
      game.board[this.x][this.y].item = null;
      game.itemList[0].unshift(this.id);
      this.alive = false;
@@ -427,17 +454,25 @@ function Mob (id, x, y, type = "player", hp = 10, dmg = 1) {
 // </editor-fold>
 
 // <editor-fold desc="Game loop">
+  console.log("Witaj w RougeLike! Twoim celem jest pokonanie wszystkich przeciwników");
+  console.log(fs.readFileSync('legend.txt', 'utf8').split("\n").join("\n"));
 while(true){
-  console.log("Witaj w RougeLike! Twoim celem jest pokonanie wszystkich przeciwników")
-  let randBoard = 1;
+  let randBoard = Math.floor(Math.random()*3) + 1;
   let game = new Game(fs.readFileSync('zestaw_plansz/board' + randBoard + '.txt', 'utf8').split("\n").map(_ => _.split("")));
   game.putPlayer();
   game.fillWithMobs("random",5);
-  game.fillWithItems("random", "random",10);
+  game.fillWithItems("random", "random",8);
 
-  while(game.mobList[game.findMobAttribs(0)[0]].alive) {
+  while(true) {
     game.removeDeadMobs();
-  //for (let j = 0; j < 5; j++) {
+    if(game.mobList.length <= 2) {
+      console.log("Brawo!");
+      break;
+    }
+    if(game.mobList[game.findMobAttribs(0)[0]].alive === false){
+      console.log("Niestety umarłeś!");
+      break;
+    }
     game.draw();
     let getKeyAndMove = function getKeyAndMove(){
       while(true){
@@ -468,6 +503,6 @@ while(true){
       if (game.mobList[i].type !== "player") game.mobList[i].moveToPlayer(game);
     }
   }
-  console.log("Niestety umarłeś!");
+
 }
 // </editor-fold>
